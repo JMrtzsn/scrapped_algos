@@ -1,13 +1,21 @@
-from catalyst.api import (symbol, order_target_percent)
+from catalyst.api import symbol, order_target_percent
 from catalyst.exchange.exchange_errors import CreateOrderError
 
 from scrapped.crypto_asset import CryptoAsset
 
 
 class StrategyTemplate(object):
-
-    def __init__(self, name, log, trading_pairs, execution_time, total_allocation, initial_leverage,
-                 history_time_frame, quote_currency):
+    def __init__(
+        self,
+        name,
+        log,
+        trading_pairs,
+        execution_time,
+        total_allocation,
+        initial_leverage,
+        history_time_frame,
+        quote_currency,
+    ):
         """
         Base init function, same for all strategies.
         :param trading_pairs: Dict of symbol and allocation.
@@ -26,8 +34,13 @@ class StrategyTemplate(object):
         self.quote_currency = quote_currency
 
         for pair, asset_allocation in trading_pairs.items():
-            asset = CryptoAsset(name=pair, symbol=symbol(pair),
-                                portfolio_allocation=asset_allocation * total_allocation * initial_leverage)
+            asset = CryptoAsset(
+                name=pair,
+                symbol=symbol(pair),
+                portfolio_allocation=asset_allocation
+                * total_allocation
+                * initial_leverage,
+            )
             self.assets.append(asset)
 
         self.timer = execution_time
@@ -73,7 +86,7 @@ class StrategyTemplate(object):
         :return:
         """
 
-    def record(self, ):
+    def record(self,):
         pass
 
     def analyze(self, context, perf):
@@ -82,9 +95,11 @@ class StrategyTemplate(object):
     def sell_all_holdings(self, context, data):
         self.log.warning(f"{self.name} - Sell all triggered")
         for asset in context.assets:
-            asset_price = data.current(asset.symbol, 'price')
+            asset_price = data.current(asset.symbol, "price")
             try:
-                order_target_percent(asset=asset.symbol, target=0, limit_price=asset_price * 0.98)
+                order_target_percent(
+                    asset=asset.symbol, target=0, limit_price=asset_price * 0.98
+                )
                 self.log.warning(f"{self.name} - Sold: {asset.symbol}")
             except CreateOrderError as e:
                 self.log.warning(f"{self.name} - CreateOrderError {e.args}")
@@ -92,10 +107,13 @@ class StrategyTemplate(object):
     def buy_all_holdings(self, context, data):
         self.log.warning(f"{self.name} - Buy all triggered")
         for asset in context.assets:
-            asset_price = data.current(asset.symbol, 'price')
+            asset_price = data.current(asset.symbol, "price")
             try:
-                order_target_percent(asset=asset.symbol, target=asset.portfolio_allocation,
-                                     limit_price=asset_price * 1.02)
+                order_target_percent(
+                    asset=asset.symbol,
+                    target=asset.portfolio_allocation,
+                    limit_price=asset_price * 1.02,
+                )
                 self.log.warning(f"{self.name} - Bought {asset.symbol}")
                 asset.vstop_set_uptrend()
             except CreateOrderError as e:
@@ -111,20 +129,27 @@ class StrategyTemplate(object):
                 limit_price = asset.price * 0.98
             try:
 
-                order_target_percent(asset=asset.symbol, target=asset.portfolio_allocation,
-                                     limit_price=limit_price)
+                order_target_percent(
+                    asset=asset.symbol,
+                    target=asset.portfolio_allocation,
+                    limit_price=limit_price,
+                )
 
-                self.log.warning(f"{self.name} - Set_Holding triggered {asset.symbol},"
-                                 f"\n{asset.new_portfolio_allocation} to {asset.new_portfolio_allocation} ")
+                self.log.warning(
+                    f"{self.name} - Set_Holding triggered {asset.symbol},"
+                    f"\n{asset.new_portfolio_allocation} to {asset.new_portfolio_allocation} "
+                )
 
-                #what do?
-                #asset.vstop_set_uptrend()
+                # what do?
+                # asset.vstop_set_uptrend()
             except CreateOrderError as e:
                 self.log.warning(f"{self.name} - CreateOrderError {e.args}")
 
     def log_portfolio(self, context):
         # should reference self name
-        self.log.warning(f"{self.name}"
-                         f"\nPortfolio value: {context.portfolio.portfolio_value} "
-                         f"\nProfit and Loss:: {context.portfolio.pnl} "
-                         f"\nReturn %: {round(context.portfolio.returns, 3) * 100}")
+        self.log.warning(
+            f"{self.name}"
+            f"\nPortfolio value: {context.portfolio.portfolio_value} "
+            f"\nProfit and Loss:: {context.portfolio.pnl} "
+            f"\nReturn %: {round(context.portfolio.returns, 3) * 100}"
+        )

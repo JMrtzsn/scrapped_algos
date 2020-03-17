@@ -8,13 +8,13 @@ from logbook import Logger
 from matplotlib.dates import date2num
 import matplotlib.pyplot as plt
 
-log = Logger('Schaff Trend Cycle')
+log = Logger("Schaff Trend Cycle")
 
 
 def initialize(context):
-    log.info('initializing STC algorithm')
-    context.bitfinex = context.exchanges['bitfinex']
-    context.asset = symbol('btc_usd', context.bitfinex.name)
+    log.info("initializing STC algorithm")
+    context.bitfinex = context.exchanges["bitfinex"]
+    context.asset = symbol("btc_usd", context.bitfinex.name)
 
     context.threshold = 1
     context.in_high = False
@@ -40,8 +40,9 @@ def _handle_data(context, data):
     prices = data.history(
         context.asset,
         bar_count=context.BARS,
-        fields=['price', 'open', 'high', 'low', 'price'],
-        frequency='1d')
+        fields=["price", "open", "high", "low", "price"],
+        frequency="1d",
+    )
 
     analysis = pd.DataFrame(index=prices.index)
     """
@@ -49,11 +50,13 @@ def _handle_data(context, data):
     input: analysis panda DataFrame
     output: bool
     """
-    analysis['macd'], analysis['macdSignal'], analysis['macdHist'] = ta.MACD(
-        prices.close.as_matrix(), fastperiod=context.MACD_FAST,
-        slowperiod=context.MACD_SLOW, signalperiod=context.MACD_SIGNAL)
-    analysis['macd_test'] = np.where((analysis.macd > analysis.macdSignal), 1, 0)
-
+    analysis["macd"], analysis["macdSignal"], analysis["macdHist"] = ta.MACD(
+        prices.close.as_matrix(),
+        fastperiod=context.MACD_FAST,
+        slowperiod=context.MACD_SLOW,
+        signalperiod=context.MACD_SIGNAL,
+    )
+    analysis["macd_test"] = np.where((analysis.macd > analysis.macdSignal), 1, 0)
 
     """
     m = analysis['macd']
@@ -74,7 +77,7 @@ def _handle_data(context, data):
     # Save the prices and analysis to send to analyze
     context.prices = prices
     context.analysis = analysis
-    context.price = data.current(context.asset, 'price')
+    context.price = data.current(context.asset, "price")
 
     makeOrders(context, analysis)
 
@@ -83,20 +86,21 @@ def _handle_data(context, data):
 
 
 def handle_data(context, data):
-    log.info('handling bar {}'.format(data.current_dt))
+    log.info("handling bar {}".format(data.current_dt))
     try:
         _handle_data(context, data)
     except Exception as e:
-        log.warn('aborting the bar on error {}'.format(e))
+        log.warn("aborting the bar on error {}".format(e))
         context.errors.append(e)
 
-    log.info('completed bar {}, total execution errors {}'.format(
-        data.current_dt,
-        len(context.errors)
-    ))
+    log.info(
+        "completed bar {}, total execution errors {}".format(
+            data.current_dt, len(context.errors)
+        )
+    )
 
     if len(context.errors) > 0:
-        log.info('the errors:\n{}'.format(context.errors))
+        log.info("the errors:\n{}".format(context.errors))
 
 
 def makeOrders(context, analysis):
@@ -105,78 +109,74 @@ def makeOrders(context, analysis):
         # Current position
         position = context.portfolio.positions[context.asset]
 
-        if (position == 0):
-            log.info('Position Zero')
+        if position == 0:
+            log.info("Position Zero")
             return
 
         # Cost Basis
         cost_basis = position.cost_basis
 
         log.info(
-            'Holdings: {amount} @ {cost_basis}'.format(
-                amount=position.amount,
-                cost_basis=cost_basis
+            "Holdings: {amount} @ {cost_basis}".format(
+                amount=position.amount, cost_basis=cost_basis
             )
         )
 
         # Sell when holding and got sell singnal
         if isSell(context, analysis):
-            profit = (context.price * position.amount) - (
-                    cost_basis * position.amount)
+            profit = (context.price * position.amount) - (cost_basis * position.amount)
             order_target_percent(
                 asset=context.asset,
                 target=0,
                 limit_price=context.price * (1 - context.SLIPPAGE_ALLOWED),
             )
             log.info(
-                'Sold {amount} @ {price} Profit: {profit}'.format(
-                    amount=position.amount,
-                    price=context.price,
-                    profit=profit
+                "Sold {amount} @ {price} Profit: {profit}".format(
+                    amount=position.amount, price=context.price, profit=profit
                 )
             )
         else:
-            log.info('no buy or sell opportunity found')
+            log.info("no buy or sell opportunity found")
     else:
         # Buy when not holding and got buy signal
         if isBuy(context, analysis):
             order(
                 asset=context.asset,
                 amount=context.ORDER_SIZE,
-                limit_price=context.price * (1 + context.SLIPPAGE_ALLOWED)
+                limit_price=context.price * (1 + context.SLIPPAGE_ALLOWED),
             )
             log.info(
-                'Bought {amount} @ {price}'.format(
-                    amount=context.ORDER_SIZE,
-                    price=context.price
+                "Bought {amount} @ {price}".format(
+                    amount=context.ORDER_SIZE, price=context.price
                 )
             )
 
 
 def isBuy(context, analysis):
-    if getLast(analysis, 'macd_test') == 1:
+    if getLast(analysis, "macd_test") == 1:
         return True
     return False
 
 
 def isSell(context, analysis):
-    if getLast(analysis, 'macd_test') == 0:
+    if getLast(analysis, "macd_test") == 0:
         return True
     return False
 
 
 def analyze(context=None, results=None):
     import matplotlib.pyplot as plt
+
     # Plot the portfolio and asset data.
-    results[['portfolio_value']].plot()
+    results[["portfolio_value"]].plot()
     plt.show()
 
 
 def logAnalysis(analysis):
-    log.info('- macd:           {:.2f}'.format(getLast(analysis, 'macd')))
-    log.info('- macdSignal:     {:.2f}'.format(getLast(analysis, 'macdSignal')))
-    log.info('- macdHist:       {:.2f}'.format(getLast(analysis, 'macdHist')))
-    log.info('- macd_test:      {}'.format(getLast(analysis, 'macd_test')))
+    log.info("- macd:           {:.2f}".format(getLast(analysis, "macd")))
+    log.info("- macdSignal:     {:.2f}".format(getLast(analysis, "macdSignal")))
+    log.info("- macdHist:       {:.2f}".format(getLast(analysis, "macdHist")))
+    log.info("- macd_test:      {}".format(getLast(analysis, "macd_test")))
 
 
 def chart(context, prices, analysis, results):
@@ -186,22 +186,30 @@ def chart(context, prices, analysis, results):
     dates = date2num(prices.index.to_pydatetime())
 
     # Create the Open High Low Close Tuple
-    prices_ohlc = [tuple([dates[i],
-                          prices.open[i],
-                          prices.high[i],
-                          prices.low[i],
-                          prices.close[i]]) for i in range(len(dates))]
+    prices_ohlc = [
+        tuple(
+            [dates[i], prices.open[i], prices.high[i], prices.low[i], prices.close[i]]
+        )
+        for i in range(len(dates))
+    ]
 
     fig = plt.figure(figsize=(14, 18))
 
     # Draw MACD with TaLib
     ax3 = fig.add_subplot(413)
-    ax3.set_ylabel('MACD: ' + str(context.MACD_FAST) + ', ' + str(
-        context.MACD_SLOW) + ', ' + str(context.MACD_SIGNAL), size=12)
-    analysis.macd.plot(ax=ax3, color='b', label='Macd')
-    analysis.macdSignal.plot(ax=ax3, color='g', label='Signal')
-    analysis.macdHist.plot(ax=ax3, color='r', label='Hist')
-    ax3.axhline(0, lw=2, color='0')
+    ax3.set_ylabel(
+        "MACD: "
+        + str(context.MACD_FAST)
+        + ", "
+        + str(context.MACD_SLOW)
+        + ", "
+        + str(context.MACD_SIGNAL),
+        size=12,
+    )
+    analysis.macd.plot(ax=ax3, color="b", label="Macd")
+    analysis.macdSignal.plot(ax=ax3, color="g", label="Signal")
+    analysis.macdHist.plot(ax=ax3, color="r", label="Hist")
+    ax3.axhline(0, lw=2, color="0")
     handles, labels = ax3.get_legend_handles_labels()
     ax3.legend(handles, labels)
 
@@ -212,14 +220,16 @@ def getLast(arr, name):
     return arr[name][arr[name].index[-1]]
 
 
-run_algorithm(initialize=initialize,
-              handle_data=handle_data,
-              analyze=analyze,
-              capital_base=10000,
-              live=False,
-              base_currency='usd',
-              exchange_name='bitfinex',
-              algo_namespace='STC',
-              data_frequency='daily',
-              start=pd.to_datetime('2017-11-01', utc=True),
-              end=pd.to_datetime('2017-12-31', utc=True))
+run_algorithm(
+    initialize=initialize,
+    handle_data=handle_data,
+    analyze=analyze,
+    capital_base=10000,
+    live=False,
+    base_currency="usd",
+    exchange_name="bitfinex",
+    algo_namespace="STC",
+    data_frequency="daily",
+    start=pd.to_datetime("2017-11-01", utc=True),
+    end=pd.to_datetime("2017-12-31", utc=True),
+)

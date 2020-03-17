@@ -5,18 +5,21 @@ import talib
 from logbook import Logger
 
 from catalyst import run_algorithm
-from catalyst.api import (record, symbol, order_target_percent, )
+from catalyst.api import (
+    record,
+    symbol,
+    order_target_percent,
+)
 from catalyst.exchange.utils.stats_utils import extract_transactions
 
-NAMESPACE = 'Momentum VSTOP + RSI dip buy'
+NAMESPACE = "Momentum VSTOP + RSI dip buy"
 log = Logger(NAMESPACE)
 
 
 def initialize(context):
     context.warmup = 0
-    context.asset = symbol('eos_usd')
+    context.asset = symbol("eos_usd")
     context.base_price = None
-
 
 
 def handle_data(context, data):
@@ -25,33 +28,27 @@ def handle_data(context, data):
     long_window = 200
 
     # Skip as many bars as long_window to properly compute the average
-    #Rolling windows
+    # Rolling windows
     context.warmup += 1
     if context.warmup < long_window:
         return
-
 
     # Compute moving averages calling data.history() for each
     # moving average with the appropriate parameters. We choose to use
     # minute bars for this simulation -> freq="1m"
     # Returns a pandas dataframe.
-    short_data = data.history(context.asset,
-                              'price',
-                              bar_count=short_window,
-                              frequency="1T",
-                              )
+    short_data = data.history(
+        context.asset, "price", bar_count=short_window, frequency="1T",
+    )
     short_mavg = short_data.mean()
-    long_data = data.history(context.asset,
-                             'price',
-                             bar_count=long_window,
-                             frequency="1T",
-                             )
+    long_data = data.history(
+        context.asset, "price", bar_count=long_window, frequency="1T",
+    )
     long_mavg = long_data.mean()
-
 
     rsi = talib.RSI(long_data, timeperiod=14)[-1]
     # Let's keep the price of our asset in a more handy variable
-    price = data.current(context.asset, 'price')
+    price = data.current(context.asset, "price")
 
     # If base_price is not set, we use the current value. This is the
     # price at the first bar which we reference to calculate price_change.
@@ -60,13 +57,14 @@ def handle_data(context, data):
     price_change = (price - context.base_price) / context.base_price
 
     # Save values for later inspection
-    record(price=price,
-           cash=context.portfolio.cash,
-           price_change=price_change,
-           short_mavg=short_mavg,
-           long_mavg=long_mavg,
-           rsi=rsi,
-           )
+    record(
+        price=price,
+        cash=context.portfolio.cash,
+        price_change=price_change,
+        short_mavg=short_mavg,
+        long_mavg=long_mavg,
+        rsi=rsi,
+    )
 
     # Since we are using limit orders, some orders may not execute immediately
     # we wait until all orders are executed before considering more trades.
@@ -97,89 +95,87 @@ def analyze(context, perf):
 
     # First chart: Plot portfolio value using base_currency
     ax1 = plt.subplot(611)
-    perf.loc[:, ['portfolio_value']].plot(ax=ax1)
+    perf.loc[:, ["portfolio_value"]].plot(ax=ax1)
     ax1.legend_.remove()
-    ax1.set_ylabel('Portfolio Value\n({})'.format(base_currency))
+    ax1.set_ylabel("Portfolio Value\n({})".format(base_currency))
     start, end = ax1.get_ylim()
     ax1.yaxis.set_ticks(np.arange(start, end, (end - start) / 5))
 
     # Second chart: Plot asset price, moving averages and buys/sells
     ax2 = plt.subplot(612, sharex=ax1)
-    perf.loc[:, ['price', 'short_mavg', 'long_mavg']].plot(
-        ax=ax2,
-        label='Price')
+    perf.loc[:, ["price", "short_mavg", "long_mavg"]].plot(ax=ax2, label="Price")
     ax2.legend_.remove()
-    ax2.set_ylabel('{asset}\n({base})'.format(
-        asset=context.asset.symbol,
-        base=base_currency
-    ))
+    ax2.set_ylabel(
+        "{asset}\n({base})".format(asset=context.asset.symbol, base=base_currency)
+    )
     start, end = ax2.get_ylim()
     ax2.yaxis.set_ticks(np.arange(start, end, (end - start) / 5))
 
     transaction_df = extract_transactions(perf)
     if not transaction_df.empty:
 
-        buy_df = transaction_df.loc[transaction_df['amount'] > 0]
-        sell_df = transaction_df.loc[transaction_df['amount'] < 0]
+        buy_df = transaction_df.loc[transaction_df["amount"] > 0]
+        sell_df = transaction_df.loc[transaction_df["amount"] < 0]
 
         log.info("Buy DF: \n {} ".format(buy_df))
 
         log.info("Sell  DF: \n {} ".format(sell_df))
         ax2.scatter(
             buy_df.index.to_pydatetime(),
-            perf.loc[buy_df.index, 'price'],
-            marker='^',
+            perf.loc[buy_df.index, "price"],
+            marker="^",
             s=100,
-            c='green',
-            label=''
+            c="green",
+            label="",
         )
         ax2.scatter(
             sell_df.index.to_pydatetime(),
-            perf.loc[sell_df.index, 'price'],
-            marker='v',
+            perf.loc[sell_df.index, "price"],
+            marker="v",
             s=100,
-            c='red',
-            label=''
+            c="red",
+            label="",
         )
 
     # Third chart: Compare percentage change between our portfolio
     # and the price of the asset
     ax3 = plt.subplot(613, sharex=ax1)
-    perf.loc[:, ['algorithm_period_return', 'price_change']].plot(ax=ax3)
+    perf.loc[:, ["algorithm_period_return", "price_change"]].plot(ax=ax3)
     ax3.legend_.remove()
-    ax3.set_ylabel('Percent Change')
+    ax3.set_ylabel("Percent Change")
     start, end = ax3.get_ylim()
     ax3.yaxis.set_ticks(np.arange(start, end, (end - start) / 5))
 
     # Fourth chart: Plot our cash
     ax4 = plt.subplot(614, sharex=ax1)
     perf.cash.plot(ax=ax4)
-    ax4.set_ylabel('Cash\n({})'.format(base_currency))
+    ax4.set_ylabel("Cash\n({})".format(base_currency))
     start, end = ax4.get_ylim()
     ax4.yaxis.set_ticks(np.arange(0, end, end / 5))
 
     ax6 = plt.subplot(615, sharex=ax1)
-    perf.loc[:, 'rsi'].plot(ax=ax6, label='RSI')
-    ax6.set_ylabel('RSI')
+    perf.loc[:, "rsi"].plot(ax=ax6, label="RSI")
+    ax6.set_ylabel("RSI")
     start, end = ax6.get_ylim()
     ax6.yaxis.set_ticks(np.arange(0, end, end / 5))
 
     plt.show()
 
-#run algo parameters, essentially a big main method (think java lol)
-if __name__ == '__main__':
+
+# run algo parameters, essentially a big main method (think java lol)
+if __name__ == "__main__":
     run_algorithm(
-        #How much cash
+        # How much cash
         capital_base=1000,
-        data_frequency='minute',
+        data_frequency="minute",
         initialize=initialize,
         simulate_orders=True,
         handle_data=handle_data,
         analyze=analyze,
-        exchange_name='bitfinex',
+        exchange_name="bitfinex",
         algo_namespace=NAMESPACE,
-        base_currency='usd',
-        start=pd.to_datetime('2017-9-22', utc=True),
-        end=pd.to_datetime('2017-9-23', utc=True),
-        live=False
+        base_currency="usd",
+        start=pd.to_datetime("2017-9-22", utc=True),
+        end=pd.to_datetime("2017-9-23", utc=True),
+        live=False,
     )
